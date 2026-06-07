@@ -1,7 +1,5 @@
 # GPU VRAM Optimizer — Kubernetes Scheduler Plugin
 
-[![CI](https://github.com/<your-username>/gpu-vram-optimizer-k8s/actions/workflows/ci.yaml/badge.svg)](https://github.com/<your-username>/gpu-vram-optimizer-k8s/actions/workflows/ci.yaml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/<your-username>/gpu-vram-optimizer-k8s)](https://goreportcard.com/report/github.com/<your-username>/gpu-vram-optimizer-k8s)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
 A custom [Kubernetes Scheduler Framework](https://kubernetes.io/docs/concepts/scheduling-eviction/scheduling-framework/) plugin that optimizes placement of Large Language Model (LLM) inference workloads by minimizing GPU VRAM fragmentation across a cluster.
@@ -82,22 +80,22 @@ llm-pod-oversized            <Pending>              ← correctly unschedulable
 ┌──────────────────────────────────────────────────────────────────────┐
 │  Kubernetes Cluster                                                  │
 │                                                                      │
-│  ┌─────────────────────┐     per-node IP:8080    ┌────────────────┐ │
-│  │  Telemetry DaemonSet │ ◄──────────────────────│ Scheduler      │ │
-│  │  (one pod per node)  │                        │ Plugin         │ │
-│  │                      │                        │                │ │
-│  │  NODE_NAME injected  │  GET /api/v1/nodes/    │ PreFilter:     │ │
-│  │  via Downward API    │  {nodeName}            │ parse VRAM req │ │
-│  │                      │                        │                │ │
-│  │  Exposes:            │                        │ Filter:        │ │
-│  │  /metrics (prom)     │                        │ avail ≥ req    │ │
-│  │  /api/v1/nodes       │                        │                │ │
-│  └─────────────────────┘                        │ Score: BFD     │ │
-│           │ scrape                               └────────────────┘ │
+│  ┌─────────────────────┐     per-node IP:8080    ┌────────────────┐  │
+│  │  Telemetry DaemonSet │ ◄──────────────────────│ Scheduler      │  │
+│  │  (one pod per node)  │                        │ Plugin         │  │
+│  │                      │                        │                │  │
+│  │  NODE_NAME injected  │  GET /api/v1/nodes/    │ PreFilter:     │  │
+│  │  via Downward API    │  {nodeName}            │ parse VRAM req │  │
+│  │                      │                        │                │  │
+│  │  Exposes:            │                        │ Filter:        │  │
+│  │  /metrics (prom)     │                        │ avail ≥ req    │  │
+│  │  /api/v1/nodes       │                        │                │  │
+│  └──────────────────────┘                        │ Score: BFD     │  │
+│           │ scrape                               └────────────────┘  │
 │           ▼                                                          │
-│  ┌─────────────────────┐                                            │
-│  │  Prometheus          │                                            │
-│  └─────────────────────┘                                            │
+│  ┌─────────────────────┐                                             │
+│  │  Prometheus         │                                             │
+│  └─────────────────────┘                                             │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -118,8 +116,8 @@ Surviving nodes are ranked by a weighted composite score (0–100):
 
 $$\text{score} = 90 \times (1 - \text{frag\_ratio}) + 10 \times \left(1 - \frac{\text{available} - \text{requested}}{\text{available}}\right)$$
 
-- **Fragmentation component (90 pts):** Nodes with contiguous memory rank higher.
-- **Best-Fit component (10 pts):** When fragmentation scores tie, the node with the least leftover VRAM after placement wins — driving tight bin-packing.
+- **Fragmentation component (90 pts):** Nodes with less fragmented memory rank higher.
+- **Best-fit component (10 pts):** When fragmentation scores tie, the node with the least leftover VRAM after placement wins — driving tight bin-packing.
 
 ### Pod Annotation
 
@@ -177,41 +175,6 @@ The `NodeMetrics` struct, HTTP endpoints, and all scheduler logic remain identic
 
 ---
 
-## Project Structure
-
-```
-.
-├── cmd/
-│   ├── telemetry-daemon/       Entry point — starts the HTTP telemetry server
-│   └── scheduler/              Entry point — boots the custom kube-scheduler
-├── internal/
-│   ├── telemetry/
-│   │   ├── types.go            Shared NodeMetrics struct
-│   │   └── server.go           HTTP daemon (/metrics Prometheus + /api/v1/nodes JSON)
-│   └── scheduler/
-│       ├── client.go           Service + DaemonSet mode HTTP client
-│       ├── plugin.go           PreFilter / Filter / Score extension points
-│       ├── plugin_test.go      Unit tests — pure math, no k8s API required
-│       ├── integration_test.go Full PreFilter→Filter→Score pipeline via httptest
-│       └── chaos_test.go       Resilience tests — daemon failure, timeout, bad JSON
-├── deploy/
-│   ├── namespace.yaml
-│   ├── telemetry-daemon/       DaemonSet + Service (one pod per GPU worker node)
-│   ├── scheduler/              RBAC + ConfigMap + Deployment
-│   └── observability/          Prometheus Deployment + ConfigMap
-├── examples/
-│   └── dummy-llm-workloads.yaml  Annotated busybox pods + flood Deployment
-├── hack/
-│   ├── kind-setup.sh           One-command local cluster bootstrap
-│   └── teardown.sh             Clean cluster removal
-├── .github/workflows/ci.yaml   CI: lint → test → build → docker → trivy scan
-├── .golangci.yaml              14-linter golangci-lint configuration
-├── Dockerfile.telemetry
-├── Dockerfile.scheduler
-└── Makefile
-```
-
----
 
 ## What Is Working
 
@@ -422,225 +385,4 @@ metadata:
 | distroless base images | No shell, no package manager — minimal CVE surface in production containers |
 | Apache 2.0 license | CNCF ecosystem compatible; safe for enterprise adoption |
 
-
----
-
-## The Problem
-
-Standard Kubernetes scheduling treats GPU resources as binary (GPU count), with no awareness of VRAM topology or memory fragmentation. When LLM workloads dynamically scale their KV-cache, fragmented VRAM leads to:
-
-- Out-Of-Memory (OOM) kills even when total free VRAM exceeds the workload's request
-- Poor GPU utilization — large free blocks split across nodes that can't satisfy any single workload
-- No bin-packing — the default scheduler spreads workloads rather than packing them tightly
-
----
-
-## How It Works
-
-The system is three decoupled components:
-
-```
-┌─────────────────────┐     HTTP poll     ┌───────────────────────────┐
-│  Telemetry Daemon   │ ◄──────────────── │  Scheduler Plugin         │
-│  (Component A)      │                   │  (Component B)            │
-│                     │                   │                           │
-│  /metrics           │                   │  PreFilter: parse VRAM    │
-│  /api/v1/nodes      │                   │  annotation               │
-│                     │                   │                           │
-│  Exposes:           │                   │  Filter: available ≥ req  │
-│  - vram_available   │                   │                           │
-│  - frag_ratio       │                   │  Score: Best-Fit          │
-└─────────────────────┘                   │  Decreasing algorithm     │
-                                          └───────────────────────────┘
-         │ scrape                                     │ scheduling decisions
-         ▼                                            ▼
-┌─────────────────────┐                   ┌───────────────────────────┐
-│  Prometheus         │                   │  Kubernetes Control Plane │
-│  (Component C)      │                   └───────────────────────────┘
-└─────────────────────┘
-```
-
-### Scheduling Algorithm
-
-**Filter Phase — Capacity Check**
-
-A node is marked `Unschedulable` if:
-```
-node.vram_available_bytes < pod.nvidia.com/gpu-vram-req
-```
-
-**Score Phase — Best-Fit Decreasing**
-
-Surviving nodes are ranked by a weighted composite score (0–100):
-
-$$\text{score} = 90 \times (1 - \text{frag\_ratio}) + 10 \times \left(1 - \frac{\text{available} - \text{requested}}{\text{available}}\right)$$
-
-- **Fragmentation component (90 pts):** Nodes with contiguous memory rank higher.
-- **Best-Fit component (10 pts):** When fragmentation scores tie, the node with the least leftover VRAM after placement wins — driving tight bin-packing.
-
-### Pod Annotation
-
-Pods opt in to the custom scheduler via:
-
-```yaml
-spec:
-  schedulerName: gpu-packer-scheduler
-
-metadata:
-  annotations:
-    nvidia.com/gpu-vram-req: "40000000000"  # 40 GB in bytes
-```
-
----
-
-## Project Structure
-
-```
-.
-├── cmd/
-│   ├── telemetry-daemon/       Entry point — starts the HTTP telemetry server
-│   └── scheduler/              Entry point — boots the custom kube-scheduler
-├── internal/
-│   ├── telemetry/
-│   │   ├── types.go            Shared NodeMetrics struct
-│   │   └── server.go           HTTP daemon (/metrics Prometheus + /api/v1/nodes JSON)
-│   └── scheduler/
-│       ├── client.go           HTTP client that polls the telemetry daemon
-│       ├── plugin.go           PreFilter / Filter / Score extension points
-│       ├── plugin_test.go      Unit tests — pure math, no k8s API required
-│       ├── integration_test.go Full PreFilter→Filter→Score pipeline via httptest
-│       └── chaos_test.go       Resilience tests — daemon failure, timeout, bad JSON
-├── deploy/
-│   ├── namespace.yaml
-│   ├── telemetry-daemon/       Deployment + Service
-│   ├── scheduler/              RBAC + ConfigMap + Deployment
-│   └── observability/          Prometheus Deployment + ConfigMap
-├── examples/
-│   └── dummy-llm-workloads.yaml  Annotated busybox pods + flood Deployment
-├── hack/
-│   ├── kind-setup.sh           One-command local cluster bootstrap
-│   └── teardown.sh             Clean cluster removal
-├── .github/workflows/ci.yaml   CI: lint → test → build → docker → trivy scan
-├── .golangci.yaml              14-linter golangci-lint configuration
-├── Dockerfile.telemetry
-├── Dockerfile.scheduler
-└── Makefile
-```
-
----
-
-## What Is Working
-
-| Component | Status | Notes |
-|---|---|---|
-| Telemetry Daemon | ✅ | Exposes `/metrics` (Prometheus) and `/api/v1/nodes` (JSON). Configurable via env vars. |
-| Scheduler Plugin — PreFilter | ✅ | Parses `nvidia.com/gpu-vram-req`; skips non-GPU pods cleanly via `framework.Skip`. |
-| Scheduler Plugin — Filter | ✅ | Marks nodes `Unschedulable` when available VRAM < requested bytes. |
-| Scheduler Plugin — Score | ✅ | Best-Fit Decreasing composite score (90 pt frag weight + 10 pt fit weight). |
-| `NodeMetricsFetcher` interface | ✅ | Plugin depends on an interface, not the concrete client — enables clean injection in tests. |
-| Unit Tests (6) | ✅ | `FilterNode`, `ScoreNode`, tie-breaking, fragmentation dominance — pure Go, no k8s deps. |
-| Integration Tests (9) | ✅ | Full pipeline via `httptest.Server`: PreFilter validation, Filter boundary cases, Score ordering, end-to-end H100 vs A10G scenario. |
-| Chaos Tests (5) | ✅ | Daemon unreachable, HTTP 500, malformed JSON, HTTP 404 fallback, context timeout — control plane never crashes. |
-| Kubernetes Manifests | ✅ | Namespace, RBAC, Scheduler ConfigMap + Deployment, Prometheus. |
-| Dockerfiles | ✅ | Multi-stage distroless builds for both binaries. |
-| GitHub Actions CI | ✅ | lint → test (race detector) → build → docker push to GHCR → Trivy vulnerability scan. |
-| `hack/kind-setup.sh` | ✅ | Bootstraps a 3-node kind cluster (1 control-plane + 2 simulated GPU workers), loads images, applies all manifests. |
-| Example workloads | ✅ | 40 GB pod, 8 GB pod, oversized pod (stays Pending), 5-replica flood Deployment. |
-| Makefile | ✅ | `deps`, `test`, `lint`, `build`, `docker-build`, `docker-push`, `deploy`, `undeploy`, `run-telemetry`. |
-| `.golangci.yaml` | ✅ | 14 linters: `errcheck`, `staticcheck`, `govet`, `bodyclose`, `noctx`, `contextcheck`, and more. |
-
----
-
-## What Is Not Yet Done
-
-| Item | Phase | Notes |
-|---|---|---|
-| `envtest` integration tests | Phase 1 | Programmatically submit real Pods/Nodes to a local API server and assert `Binding` objects are produced by the plugin. |
-| Helm chart / Kustomize overlay | Phase 2 | Single-command deployment for external cluster operators. |
-| `go.sum` / vendor directory | — | Run `make deps` after cloning to resolve all indirect k8s staging-repo dependencies. |
-
----
-
-## Quick Start
-
-### Local binary (no cluster)
-
-**Prerequisites:** Go 1.21+
-
-```bash
-# 1. Clone and resolve all k8s indirect dependencies
-git clone https://github.com/<your-username>/gpu-vram-optimizer-k8s
-cd gpu-vram-optimizer-k8s
-make deps
-
-# 2. Run all tests (unit + integration + chaos) with race detector
-make test
-
-# 3. Build binaries to bin/
-make build
-
-# 4. Run the telemetry daemon locally — emulates an 80 GB H100 node
-make run-telemetry
-```
-
-```bash
-# In a second terminal — verify the daemon is serving metrics:
-curl http://localhost:8080/api/v1/nodes        # JSON node list
-curl http://localhost:8080/metrics | grep nvidia_gpu  # Prometheus metrics
-```
-
-### Local kind cluster (full simulation)
-
-**Prerequisites:** Go 1.21+, Docker, `kind`, `kubectl`
-
-```bash
-# 1. Build images and spin up a 3-node cluster with the full stack deployed
-./hack/kind-setup.sh
-
-# 2. Submit dummy LLM workloads
-kubectl apply -f examples/
-
-# 3. Watch scheduling decisions in real time
-kubectl logs -n gpu-scheduler -l app=gpu-packer-scheduler -f
-
-# 4. Verify the 40 GB pod landed on sim-node-h100
-kubectl get pods -o wide
-
-# 5. Tear down when done
-./hack/teardown.sh
-```
-
-### Deploy to an existing cluster
-
-```bash
-# Build and push images to your registry
-make docker-push REGISTRY=your-registry VERSION=v0.1.0
-
-# Apply all manifests
-make deploy
-```
-
----
-
-## Simulated Cluster Nodes (Default)
-
-| Node | Total VRAM | Available | Fragmentation | Score for 40 GB request |
-|---|---|---|---|---|
-| `sim-node-h100` | 80 GB | 72 GB | 8% | **~91** — passes Filter, wins Score |
-| `sim-node-a10g` | 24 GB | 20 GB | 25% | **Unschedulable** — fails Filter (20 GB < 40 GB) |
-
-A 40 GB LLM workload is **exclusively scheduled to `sim-node-h100`**. The A10G is filtered out entirely.
-
----
-
-## Architecture — Design Decisions
-
-| Decision | Rationale |
-|---|---|
-| `NodeMetricsFetcher` interface | Decouples plugin from transport layer; any implementation (HTTP, gRPC, mock) satisfies the contract |
-| `framework.Skip` for non-GPU pods | Ensures zero overhead for standard workloads — the plugin is a no-op if the annotation is absent |
-| 2s HTTP client timeout on telemetry calls | Prevents a slow daemon from blocking the scheduling cycle |
-| 404 → 0 VRAM fallback | Unknown nodes are safely excluded from scheduling rather than silently accepted |
-| distroless base images | Minimal attack surface; no shell, no package manager in production containers |
-| Apache 2.0 license | CNCF ecosystem compatible; safe for enterprise adoption |
 
