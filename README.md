@@ -1,7 +1,7 @@
 # GPU VRAM Optimizer — Kubernetes Scheduler Plugin
 
-[![CI](https://github.com/ray/gpu-vram-optimizer-k8s/actions/workflows/ci.yaml/badge.svg)](https://github.com/ray/gpu-vram-optimizer-k8s/actions/workflows/ci.yaml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/ray/gpu-vram-optimizer-k8s)](https://goreportcard.com/report/github.com/ray/gpu-vram-optimizer-k8s)
+[![CI](https://github.com/<your-username>/gpu-vram-optimizer-k8s/actions/workflows/ci.yaml/badge.svg)](https://github.com/<your-username>/gpu-vram-optimizer-k8s/actions/workflows/ci.yaml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/<your-username>/gpu-vram-optimizer-k8s)](https://goreportcard.com/report/github.com/<your-username>/gpu-vram-optimizer-k8s)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
 A custom [Kubernetes Scheduler Framework](https://kubernetes.io/docs/concepts/scheduling-eviction/scheduling-framework/) plugin that optimizes placement of Large Language Model (LLM) inference workloads by minimizing GPU VRAM fragmentation across a cluster.
@@ -250,7 +250,7 @@ The `NodeMetrics` struct, HTTP endpoints, and all scheduler logic remain identic
 ### Run tests locally (no cluster needed)
 
 ```bash
-git clone https://github.com/ray/gpu-vram-optimizer-k8s
+git clone https://github.com/<your-username>/gpu-vram-optimizer-k8s
 cd gpu-vram-optimizer-k8s
 make deps
 make test   # 19 tests: unit + integration + chaos, with race detector
@@ -569,7 +569,7 @@ metadata:
 
 ```bash
 # 1. Clone and resolve all k8s indirect dependencies
-git clone https://github.com/ray/gpu-vram-optimizer-k8s
+git clone https://github.com/<your-username>/gpu-vram-optimizer-k8s
 cd gpu-vram-optimizer-k8s
 make deps
 
