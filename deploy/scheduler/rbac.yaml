@@ -1,0 +1,65 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gpu-packer-scheduler
+  namespace: gpu-scheduler
+---
+# Bind to the built-in system:kube-scheduler role — covers pods, nodes,
+# bindings, events, PVs, PVCs, services, PDBs, ReplicationControllers, etc.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: gpu-packer-scheduler
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:kube-scheduler
+subjects:
+  - kind: ServiceAccount
+    name: gpu-packer-scheduler
+    namespace: gpu-scheduler
+---
+# Required by the VolumeBinding plugin (always compiled in to the framework).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: gpu-packer-scheduler-volume-scheduler
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:volume-scheduler
+subjects:
+  - kind: ServiceAccount
+    name: gpu-packer-scheduler
+    namespace: gpu-scheduler
+---
+# Supplemental role for resources watched by default framework informers
+# (InterPodAffinity, TopologySpread, etc.) that system:kube-scheduler doesn't cover.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gpu-packer-scheduler-supplemental
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["replicasets", "statefulsets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: gpu-packer-scheduler-supplemental
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: gpu-packer-scheduler-supplemental
+subjects:
+  - kind: ServiceAccount
+    name: gpu-packer-scheduler
+    namespace: gpu-scheduler

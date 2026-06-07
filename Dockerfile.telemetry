@@ -1,0 +1,11 @@
+FROM golang:1.21-alpine AS builder
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -o /telemetry-daemon ./cmd/telemetry-daemon
+
+FROM gcr.io/distroless/static-debian12
+COPY --from=builder /telemetry-daemon /telemetry-daemon
+EXPOSE 8080
+ENTRYPOINT ["/telemetry-daemon"]

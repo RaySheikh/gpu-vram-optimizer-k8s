@@ -1,0 +1,61 @@
+run:
+  timeout: 5m
+  go: "1.21"
+
+linters:
+  enable:
+    - errcheck        # check for unhandled errors
+    - govet           # go vet checks
+    - staticcheck     # advanced static analysis (replaces megacheck)
+    - ineffassign     # detects ineffectual assignments
+    - unused          # reports unused code
+    - gosimple        # simplification suggestions
+    - gofmt           # enforces gofmt formatting
+    - goimports       # enforces goimports ordering
+    - revive          # drop-in replacement for golint
+    - gocritic        # opinionated code style checks
+    - misspell        # catches common spelling mistakes in comments/strings
+    - noctx           # detects http.NewRequest without context
+    - bodyclose       # check http response body is closed
+    - prealloc        # suggests slice pre-allocation
+    - exportloopref   # checks for captured loop variables (pre-1.22 guard)
+    - contextcheck    # checks context is passed through call chains correctly
+
+  disable:
+    - depguard        # no import restrictions needed yet
+    - exhaustive      # too noisy for switch statements on k8s types
+    - funlen          # framework callbacks can be long
+    - wsl             # overly strict whitespace rules
+    - nlreturn        # too opinionated
+    - godot           # comment punctuation — not enforced here
+    - godox           # allow TODO/FIXME during active development
+
+linters-settings:
+  revive:
+    rules:
+      - name: exported
+        arguments:
+          - disableStutteringCheck
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+    disabled-checks:
+      - commentedOutCode    # allow commented-out examples in tests
+  misspell:
+    locale: US
+
+issues:
+  exclude-rules:
+    # Test files are allowed to use fmt.Println and have longer functions.
+    - path: "_test\\.go"
+      linters:
+        - gocritic
+        - funlen
+    # Generated or vendored files.
+    - path: "vendor/"
+      linters:
+        - all
+
+  max-issues-per-linter: 50
+  max-same-issues: 3

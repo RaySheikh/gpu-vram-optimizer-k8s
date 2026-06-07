@@ -1,0 +1,79 @@
+# DaemonSet — runs one telemetry pod per worker node so the daemon registers
+# under the real Kubernetes node name (injected via the Downward API).
+# The scheduler plugin queries by actual node name, so this is the correct
+# topology for both local kind clusters and real GPU clusters.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: telemetry-daemon
+  namespace: gpu-scheduler
+  labels:
+    app: telemetry-daemon
+spec:
+  selector:
+    matchLabels:
+      app: telemetry-daemon
+  template:
+    metadata:
+      labels:
+        app: telemetry-daemon
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port:   "8080"
+        prometheus.io/path:   "/metrics"
+    spec:
+      # Only run on worker nodes, not the control-plane.
+      tolerations: []
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: DoesNotExist
+      containers:
+        - name: telemetry-daemon
+          image: ghcr.io/ray/gpu-vram-telemetry-daemon:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              # hostPort makes the daemon reachable at <nodeInternalIP>:8080 —
+              # required for DaemonSet mode where the scheduler queries by node IP.
+              hostPort: 8080
+          env:
+            # Downward API — injects the real Kubernetes node name so the
+            # daemon registers under the name the scheduler plugin will query.
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            # Simulated GPU specs — all workers emulate an 80 GB H100.
+            # Override with node labels + env injection for heterogeneous fleets.
+            - name: VRAM_TOTAL_BYTES
+              value: "80000000000"
+            - name: VRAM_AVAILABLE_BYTES
+              value: "72000000000"
+            - name: VRAM_FRAGMENTATION_RATIO
+              value: "0.08"
+            - name: LISTEN_ADDR
+              value: ":8080"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"

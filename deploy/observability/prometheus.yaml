@@ -1,0 +1,72 @@
+---
+# Prometheus scrape configuration for the telemetry daemon.
+# In a real cluster, deploy kube-prometheus-stack via Helm and add a ServiceMonitor.
+# This ConfigMap is a minimal standalone Prometheus config for Phase 1 validation.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: gpu-scheduler
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+
+    scrape_configs:
+      - job_name: 'telemetry-daemon'
+        static_configs:
+          - targets: ['telemetry-daemon-svc.gpu-scheduler.svc.cluster.local:8080']
+        metrics_path: /metrics
+
+      - job_name: 'gpu-packer-scheduler'
+        scheme: https
+        tls_config:
+          insecure_skip_verify: true
+        static_configs:
+          - targets: ['gpu-packer-scheduler.gpu-scheduler.svc.cluster.local:10259']
+        metrics_path: /metrics
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: gpu-scheduler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v2.49.0
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.retention.time=1h"
+          ports:
+            - containerPort: 9090
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus
+      volumes:
+        - name: config
+          configMap:
+            name: prometheus-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-svc
+  namespace: gpu-scheduler
+spec:
+  selector:
+    app: prometheus
+  ports:
+    - port: 9090
+      targetPort: 9090
+  type: ClusterIP

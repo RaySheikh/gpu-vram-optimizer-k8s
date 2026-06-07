@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gpu-packer-scheduler-config
+  namespace: gpu-scheduler
+data:
+  scheduler-config.yaml: |
+    apiVersion: kubescheduler.config.k8s.io/v1
+    kind: KubeSchedulerConfiguration
+    leaderElection:
+      leaderElect: false
+    profiles:
+      - schedulerName: gpu-packer-scheduler
+        plugins:
+          preFilter:
+            enabled:
+              - name: VRAMPlugin
+          filter:
+            enabled:
+              - name: VRAMPlugin
+          score:
+            enabled:
+              - name: VRAMPlugin
+                weight: 10
+        pluginConfig:
+          - name: VRAMPlugin
+            args:
+              # DaemonSet mode: query each node's daemon pod directly by node IP.
+              # The telemetry daemon runs as a DaemonSet, one pod per worker node.
+              daemonSetPort: "8080"

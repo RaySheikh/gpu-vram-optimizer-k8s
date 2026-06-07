@@ -1,0 +1,182 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+    tags:    ["v*"]
+  pull_request:
+    branches: ["main"]
+
+env:
+  GO_VERSION: "1.21"
+  REGISTRY: ghcr.io
+  IMAGE_TELEMETRY: ghcr.io/${{ github.repository_owner }}/gpu-vram-telemetry-daemon
+  IMAGE_SCHEDULER:  ghcr.io/${{ github.repository_owner }}/gpu-packer-scheduler
+
+jobs:
+  # ── Quality ─────────────────────────────────────────────────────────────────
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Verify go.mod is tidy
+        run: |
+          go mod tidy
+          git diff --exit-code go.mod go.sum
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.57
+
+  # ── Tests ────────────────────────────────────────────────────────────────────
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Run unit + integration + chaos tests
+        run: go test ./internal/... -v -race -count=1 -timeout=120s
+
+      - name: Upload coverage
+        if: always()
+        run: go test ./internal/... -coverprofile=coverage.out -covermode=atomic && go tool cover -func=coverage.out
+
+  # ── Build ────────────────────────────────────────────────────────────────────
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Build binaries
+        run: make build
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries
+          path: bin/
+
+  # ── Docker ───────────────────────────────────────────────────────────────────
+  docker:
+    name: Docker Build & Push
+    runs-on: ubuntu-latest
+    needs: [build]
+    # Only push images on tags (v*) or pushes to main.
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata (telemetry daemon)
+        id: meta-telemetry
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_TELEMETRY }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Extract Docker metadata (scheduler)
+        id: meta-scheduler
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_SCHEDULER }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push telemetry daemon
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.telemetry
+          push: true
+          tags: ${{ steps.meta-telemetry.outputs.tags }}
+          labels: ${{ steps.meta-telemetry.outputs.labels }}
+          cache-from: type=gha
+          cache-to:   type=gha,mode=max
+
+      - name: Build and push scheduler
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.scheduler
+          push: true
+          tags: ${{ steps.meta-scheduler.outputs.tags }}
+          labels: ${{ steps.meta-scheduler.outputs.labels }}
+          cache-from: type=gha
+          cache-to:   type=gha,mode=max
+
+  # ── Security scan ────────────────────────────────────────────────────────────
+  scan:
+    name: Vulnerability Scan
+    runs-on: ubuntu-latest
+    needs: [docker]
+    if: github.event_name == 'push'
+    permissions:
+      security-events: write
+
+    steps:
+      - name: Run Trivy on telemetry daemon image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_TELEMETRY }}:latest
+          format: sarif
+          output: trivy-telemetry.sarif
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+
+      - name: Run Trivy on scheduler image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_SCHEDULER }}:latest
+          format: sarif
+          output: trivy-scheduler.sarif
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+
+      - name: Upload Trivy results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: |
+            trivy-telemetry.sarif
+            trivy-scheduler.sarif

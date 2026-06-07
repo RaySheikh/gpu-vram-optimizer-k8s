@@ -1,0 +1,114 @@
+---
+# Example: Dummy LLM Workload Pods
+#
+# These busybox pods carry a massive nvidia.com/gpu-vram-req annotation, causing
+# the gpu-packer-scheduler to apply the Best-Fit Decreasing algorithm against
+# the telemetry daemon's emulated node data.
+#
+# Deploy against the kind cluster bootstrapped by hack/kind-setup.sh:
+#   kubectl apply -f examples/
+#   kubectl logs -n gpu-scheduler -l app=gpu-packer-scheduler -f
+#
+# Expected outcome:
+#   - llm-pod-40gb → scheduled to sim-node-h100 (72 GB available, passes Filter)
+#   - llm-pod-8gb  → may land on either node (both pass Filter); H100 scores
+#                    higher due to lower fragmentation
+#   - llm-pod-oversized → Pending forever (no node has 200 GB — Filter rejects all)
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: llm-pod-40gb
+  namespace: default
+  labels:
+    app: dummy-llm
+    size: "40gb"
+  annotations:
+    nvidia.com/gpu-vram-req: "40000000000"  # 40 GB — only fits sim-node-h100
+spec:
+  schedulerName: gpu-packer-scheduler
+  containers:
+    - name: workload
+      image: busybox:stable
+      command: ["sh", "-c", "echo 'LLM workload running (40 GB simulated)' && sleep 3600"]
+      resources:
+        requests:
+          cpu: "10m"
+          memory: "16Mi"
+  restartPolicy: Never
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: llm-pod-8gb
+  namespace: default
+  labels:
+    app: dummy-llm
+    size: "8gb"
+  annotations:
+    nvidia.com/gpu-vram-req: "8000000000"  # 8 GB — fits both nodes; H100 wins on score
+spec:
+  schedulerName: gpu-packer-scheduler
+  containers:
+    - name: workload
+      image: busybox:stable
+      command: ["sh", "-c", "echo 'LLM workload running (8 GB simulated)' && sleep 3600"]
+      resources:
+        requests:
+          cpu: "10m"
+          memory: "16Mi"
+  restartPolicy: Never
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: llm-pod-oversized
+  namespace: default
+  labels:
+    app: dummy-llm
+    size: "oversized"
+  annotations:
+    nvidia.com/gpu-vram-req: "200000000000"  # 200 GB — no node passes Filter; stays Pending
+spec:
+  schedulerName: gpu-packer-scheduler
+  containers:
+    - name: workload
+      image: busybox:stable
+      command: ["sh", "-c", "echo 'LLM workload running (200 GB simulated)' && sleep 3600"]
+      resources:
+        requests:
+          cpu: "10m"
+          memory: "16Mi"
+  restartPolicy: Never
+---
+# Flood scenario: submit 5 identical 10 GB requests to observe bin-packing
+# across the two simulated nodes.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llm-flood
+  namespace: default
+  labels:
+    app: llm-flood
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: llm-flood
+  template:
+    metadata:
+      labels:
+        app: llm-flood
+      annotations:
+        nvidia.com/gpu-vram-req: "10000000000"  # 10 GB per replica
+    spec:
+      schedulerName: gpu-packer-scheduler
+      containers:
+        - name: workload
+          image: busybox:stable
+          command: ["sh", "-c", "echo 'Flood workload (10 GB simulated)' && sleep 3600"]
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "16Mi"
+      restartPolicy: Always

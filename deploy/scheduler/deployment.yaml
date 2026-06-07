@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gpu-packer-scheduler
+  namespace: gpu-scheduler
+  labels:
+    app: gpu-packer-scheduler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gpu-packer-scheduler
+  template:
+    metadata:
+      labels:
+        app: gpu-packer-scheduler
+    spec:
+      serviceAccountName: gpu-packer-scheduler
+      containers:
+        - name: scheduler
+          image: ghcr.io/ray/gpu-packer-scheduler:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - /scheduler
+            - --config=/etc/kubernetes/scheduler-config.yaml
+            - --v=4
+          volumeMounts:
+            - name: scheduler-config
+              mountPath: /etc/kubernetes
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 10259
+              scheme: HTTPS
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 10259
+              scheme: HTTPS
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+      volumes:
+        - name: scheduler-config
+          configMap:
+            name: gpu-packer-scheduler-config

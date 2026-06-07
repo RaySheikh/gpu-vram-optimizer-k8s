@@ -1,0 +1,28 @@
+local/*
+bin/*
+
+# Go build artifacts
+*.test
+*.out
+coverage.out
+coverage.html
+
+# Module vendor directory — not committed
+/vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# kind kubeconfig written by CI
+kubeconfig
+
+# Temporary files
+/tmp/
+*.tmp
