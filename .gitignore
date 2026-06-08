@@ -7,7 +7,7 @@ bin/*
 coverage.out
 coverage.html
 
-# Module vendor directory — not committed
+# Module vendor directory: not committed
 /vendor/
 
 # IDE

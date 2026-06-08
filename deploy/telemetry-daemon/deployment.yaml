@@ -1,4 +1,4 @@
-# DaemonSet — runs one telemetry pod per worker node so the daemon registers
+# DaemonSet: runs one telemetry pod per worker node so the daemon registers
 # under the real Kubernetes node name (injected via the Downward API).
 # The scheduler plugin queries by actual node name, so this is the correct
 # topology for both local kind clusters and real GPU clusters.
@@ -38,17 +38,17 @@ spec:
           ports:
             - name: http
               containerPort: 8080
-              # hostPort makes the daemon reachable at <nodeInternalIP>:8080 —
+              # hostPort makes the daemon reachable at <nodeInternalIP>:8080:
               # required for DaemonSet mode where the scheduler queries by node IP.
               hostPort: 8080
           env:
-            # Downward API — injects the real Kubernetes node name so the
+            # Downward API: injects the real Kubernetes node name so the
             # daemon registers under the name the scheduler plugin will query.
             - name: NODE_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-            # Simulated GPU specs — all workers emulate an 80 GB H100.
+            # Simulated GPU specs: all workers emulate an 80 GB H100.
             # Override with node labels + env injection for heterogeneous fleets.
             - name: VRAM_TOTAL_BYTES
               value: "80000000000"

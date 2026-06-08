@@ -71,7 +71,7 @@ func (c *TelemetryClient) GetNodeMetrics(ctx context.Context, nodeName string, n
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
-		// Node not registered with the daemon — treat as no available VRAM
+		// Node not registered with the daemon: treat as no available VRAM
 		// so the Filter phase will mark it Unschedulable.
 		return &telemetry.NodeMetrics{
 			NodeName:           nodeName,

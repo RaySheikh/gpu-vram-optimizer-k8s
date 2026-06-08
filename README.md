@@ -1,10 +1,10 @@
-# GPU VRAM Optimizer — Kubernetes Scheduler Plugin
+# GPU VRAM Optimizer: Kubernetes Scheduler Plugin
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
 A custom [Kubernetes Scheduler Framework](https://kubernetes.io/docs/concepts/scheduling-eviction/scheduling-framework/) plugin that optimizes placement of Large Language Model (LLM) inference workloads by minimizing GPU VRAM fragmentation across a cluster.
 
-No physical GPUs required — the telemetry daemon emulates enterprise-grade hardware metrics so the full system can be validated locally via [kind](https://kind.sigs.k8s.io/).
+No physical GPUs required: the telemetry daemon emulates enterprise-grade hardware metrics so the full system can be validated locally via [kind](https://kind.sigs.k8s.io/).
 
 ---
 
@@ -13,14 +13,14 @@ No physical GPUs required — the telemetry daemon emulates enterprise-grade har
 Standard Kubernetes scheduling treats GPU resources as binary (GPU count), with no awareness of VRAM topology or memory fragmentation. When LLM workloads dynamically scale their KV-cache, fragmented VRAM leads to:
 
 - Out-Of-Memory (OOM) kills even when total free VRAM exceeds the workload's request
-- Poor GPU utilization — large free blocks split across nodes that can't satisfy any single workload
-- No bin-packing — the default scheduler spreads workloads rather than packing them tightly
+- Poor GPU utilization: large free blocks split across nodes that can't satisfy any single workload
+- No bin-packing: the default scheduler spreads workloads rather than packing them tightly
 
 ---
 
 ## What This Does in the Demo Cluster
 
-Running `./hack/kind-setup.sh` + `kubectl apply -f examples/` produces a **fully functional simulation** of a GPU cluster scheduler — no real hardware needed.
+Running `./hack/kind-setup.sh` + `kubectl apply -f examples/` produces a **fully functional simulation** of a GPU cluster scheduler: no real hardware needed.
 
 ### What actually happens, step by step
 
@@ -103,21 +103,21 @@ llm-pod-oversized            <Pending>              ← correctly unschedulable
 
 ### Scheduling Algorithm
 
-**Filter Phase — Capacity Check**
+**Filter Phase: Capacity Check**
 
 A node is marked `Unschedulable` if:
 ```
 node.vram_available_bytes < pod.nvidia.com/gpu-vram-req
 ```
 
-**Score Phase — Best-Fit Decreasing**
+**Score Phase: Best-Fit Decreasing**
 
 Surviving nodes are ranked by a weighted composite score (0–100):
 
 $$\text{score} = 90 \times (1 - frag_{\text{ratio}}) + 10 \times \left(1 - \frac{\text{available} - \text{requested}}{\text{available}}\right)$$
 
 - **Fragmentation component (90 pts):** Nodes with less fragmented memory rank higher.
-- **Best-fit component (10 pts):** When fragmentation scores tie, the node with the least leftover VRAM after placement wins — driving tight bin-packing.
+- **Best-fit component (10 pts):** When fragmentation scores tie, the node with the least leftover VRAM after placement wins: driving tight bin-packing.
 
 ### Pod Annotation
 
@@ -143,7 +143,7 @@ The simulation layer is **fully swappable** without touching the scheduler plugi
 | `VRAM_AVAILABLE_BYTES` | Hardcoded `72000000000` | Read from `nvidia-smi --query-gpu=memory.free` |
 | `VRAM_FRAGMENTATION_RATIO` | Hardcoded `0.08` | Computed from DCGM `DCGM_FI_DEV_FB_FREE` / `DCGM_FI_DEV_FB_TOTAL` |
 | Node coverage | 2 simulated workers | One DaemonSet pod per real GPU node (already the topology) |
-| Scheduler plugin | Unchanged | Unchanged — queries same HTTP interface |
+| Scheduler plugin | Unchanged | Unchanged: queries same HTTP interface |
 
 ### Minimal production telemetry daemon
 
@@ -160,18 +160,18 @@ The `NodeMetrics` struct, HTTP endpoints, and all scheduler logic remain identic
 
 ### Why this scales linearly
 
-- **DaemonSet topology**: adding a new GPU node automatically schedules a new daemon pod — zero config changes required
-- **Per-node direct query**: the scheduler hits `nodeIP:8080` directly — no single-point-of-failure service, no cross-node aggregation bottleneck
-- **Stateless plugin**: the VRAMPlugin holds no in-memory state across scheduling cycles — safe to run with multiple scheduler replicas behind a leader election lock
+- **DaemonSet topology**: adding a new GPU node automatically schedules a new daemon pod: zero config changes required
+- **Per-node direct query**: the scheduler hits `nodeIP:8080` directly: no single-point-of-failure service, no cross-node aggregation bottleneck
+- **Stateless plugin**: the VRAMPlugin holds no in-memory state across scheduling cycles: safe to run with multiple scheduler replicas behind a leader election lock
 - **2s timeout per node query**: worst-case scheduling latency = `2s × nodes queried in parallel` (framework runs Filter/Score concurrently per node)
 
 ### What you'd add for a production deployment
 
-1. **TLS on the telemetry daemon** — the scheduler should verify the daemon's cert to prevent metric spoofing
-2. **Caching layer** — cache node metrics for 5–10s to reduce daemon load under high pod submission rates
-3. **Leader election** — already supported by the kube-scheduler framework; set `leaderElect: true` in the ConfigMap
-4. **Prometheus alerts** — alert on `nvidia_gpu_vram_fragmentation_ratio > 0.5` to trigger proactive workload rebalancing
-5. **DCGM exporter sidecar** — co-locate with the telemetry daemon pod for authoritative GPU metrics
+1. **TLS on the telemetry daemon**: the scheduler should verify the daemon's cert to prevent metric spoofing
+2. **Caching layer**: cache node metrics for 5–10s to reduce daemon load under high pod submission rates
+3. **Leader election**: already supported by the kube-scheduler framework; set `leaderElect: true` in the ConfigMap
+4. **Prometheus alerts**: alert on `nvidia_gpu_vram_fragmentation_ratio > 0.5` to trigger proactive workload rebalancing
+5. **DCGM exporter sidecar**: co-locate with the telemetry daemon pod for authoritative GPU metrics
 
 ---
 
@@ -181,10 +181,10 @@ The `NodeMetrics` struct, HTTP endpoints, and all scheduler logic remain identic
 | Component | Status | Notes |
 |---|---|---|
 | Telemetry Daemon (DaemonSet) | ✅ | One pod per GPU worker. Node name injected via Downward API. Exposes `/metrics` + `/api/v1/nodes`. |
-| Scheduler Plugin — PreFilter | ✅ | Parses `nvidia.com/gpu-vram-req`; skips non-GPU pods via `framework.Skip`. |
-| Scheduler Plugin — Filter | ✅ | Marks nodes `Unschedulable` when available VRAM < requested. Queries daemon via node IP. |
-| Scheduler Plugin — Score | ✅ | Best-Fit Decreasing. Resolves node IP from framework snapshot for DaemonSet routing. |
-| DaemonSet mode routing | ✅ | Plugin queries `http://<nodeInternalIP>:8080` per-node — no Service bottleneck. |
+| Scheduler Plugin: PreFilter | ✅ | Parses `nvidia.com/gpu-vram-req`; skips non-GPU pods via `framework.Skip`. |
+| Scheduler Plugin: Filter | ✅ | Marks nodes `Unschedulable` when available VRAM < requested. Queries daemon via node IP. |
+| Scheduler Plugin: Score | ✅ | Best-Fit Decreasing. Resolves node IP from framework snapshot for DaemonSet routing. |
+| DaemonSet mode routing | ✅ | Plugin queries `http://<nodeInternalIP>:8080` per-node: no Service bottleneck. |
 | `NodeMetricsFetcher` interface | ✅ | Swappable for any implementation (HTTP, gRPC, mock). |
 | Unit Tests (6) | ✅ | Pure math: Filter/Score formulas, tie-breaking, fragmentation dominance. |
 | Integration Tests (9) | ✅ | Full pipeline via `httptest.Server`. |
@@ -251,10 +251,10 @@ make deploy
 
 ## Configuration Reference
 
-### Telemetry Daemon — Environment Variables
+### Telemetry Daemon: Environment Variables
 
 The daemon is configured entirely through environment variables. In the DaemonSet,
-`NODE_NAME` is injected automatically — you only need to set the VRAM values.
+`NODE_NAME` is injected automatically: you only need to set the VRAM values.
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
@@ -315,7 +315,7 @@ Alternatively, if you run [DCGM Exporter](https://github.com/NVIDIA/dcgm-exporte
 
 ---
 
-### Scheduler Plugin — ConfigMap Options
+### Scheduler Plugin: ConfigMap Options
 
 The plugin is configured in `deploy/scheduler/scheduler-config.yaml` under `pluginConfig`:
 
@@ -323,19 +323,19 @@ The plugin is configured in `deploy/scheduler/scheduler-config.yaml` under `plug
 pluginConfig:
   - name: VRAMPlugin
     args:
-      # Option A — DaemonSet mode (default, recommended)
+      # Option A: DaemonSet mode (default, recommended)
       # Queries each node's daemon pod directly at http://<nodeIP>:<port>
       daemonSetPort: "8080"
 
-      # Option B — Service mode (for centralised daemon deployments)
+      # Option B: Service mode (for centralised daemon deployments)
       # All nodes report to a single daemon reachable via ClusterIP Service
       # telemetryDaemonURL: "http://telemetry-daemon-svc.gpu-scheduler.svc.cluster.local:8080"
 ```
 
 | Field | Default | When to use |
 |---|---|---|
-| `daemonSetPort` | — | **Recommended.** Use when the daemon runs as a DaemonSet (one pod per node). |
-| `telemetryDaemonURL` | — | Use when you have a single centralised daemon that knows about all nodes (e.g. wrapping a Prometheus query). |
+| `daemonSetPort` |: | **Recommended.** Use when the daemon runs as a DaemonSet (one pod per node). |
+| `telemetryDaemonURL` |: | Use when you have a single centralised daemon that knows about all nodes (e.g. wrapping a Prometheus query). |
 
 Exactly one of these must be set. Setting both is an error.
 
@@ -356,7 +356,7 @@ metadata:
 
 | Annotation | Type | Example | Notes |
 |---|---|---|---|
-| `nvidia.com/gpu-vram-req` | integer string (bytes) | `"40000000000"` = 40 GB | Must be a positive integer. Pods without this annotation are **skipped** — the default scheduler handles them normally. |
+| `nvidia.com/gpu-vram-req` | integer string (bytes) | `"40000000000"` = 40 GB | Must be a positive integer. Pods without this annotation are **skipped**: the default scheduler handles them normally. |
 
 **Byte conversion reference:**
 
@@ -371,18 +371,18 @@ metadata:
 
 ---
 
-## Architecture — Design Decisions
+## Architecture: Design Decisions
 
 | Decision | Rationale |
 |---|---|
 | DaemonSet topology | One daemon per node scales linearly; no single-point-of-failure aggregator |
-| Downward API for `NODE_NAME` | Zero-config — each pod self-registers under the correct k8s node name automatically |
-| Per-node IP querying | Scheduler routes to `nodeIP:8080` directly — avoids Service load-balancer randomly routing to the wrong node's daemon |
-| `NodeMetricsFetcher` interface | Decouples plugin from transport — swap HTTP for gRPC or a real DCGM client without touching scheduling logic |
-| `framework.Skip` for non-GPU pods | Zero overhead for standard workloads — plugin is a no-op if annotation is absent |
+| Downward API for `NODE_NAME` | Zero-config: each pod self-registers under the correct k8s node name automatically |
+| Per-node IP querying | Scheduler routes to `nodeIP:8080` directly: avoids Service load-balancer randomly routing to the wrong node's daemon |
+| `NodeMetricsFetcher` interface | Decouples plugin from transport: swap HTTP for gRPC or a real DCGM client without touching scheduling logic |
+| `framework.Skip` for non-GPU pods | Zero overhead for standard workloads: plugin is a no-op if annotation is absent |
 | 2s HTTP client timeout | Prevents slow daemon from blocking scheduling cycle |
 | 404 → 0 VRAM fallback | Unknown nodes safely excluded rather than silently accepted |
-| distroless base images | No shell, no package manager — minimal CVE surface in production containers |
+| distroless base images | No shell, no package manager: minimal CVE surface in production containers |
 | Apache 2.0 license | CNCF ecosystem compatible; safe for enterprise adoption |
 
 

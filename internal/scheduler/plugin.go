@@ -67,7 +67,7 @@ func (c *PluginConfig) GetObjectKind() schema.ObjectKind { return schema.EmptyOb
 // TelemetryClient is the production implementation; in tests any httptest-backed client
 // or stub that satisfies this interface can be substituted.
 //
-// nodeIP is optional — TelemetryClient uses it in DaemonSet mode to route
+// nodeIP is optional: TelemetryClient uses it in DaemonSet mode to route
 // directly to the daemon pod on the node. Pass empty to use Service mode.
 type NodeMetricsFetcher interface {
 	GetNodeMetrics(ctx context.Context, nodeName string, nodeIP ...string) (*telemetry.NodeMetrics, error)
@@ -96,7 +96,7 @@ func (p *VRAMPlugin) Name() string { return Name }
 func New(_ context.Context, obj runtime.Object, h framework.Handle) (framework.Plugin, error) {
 	cfg := &PluginConfig{}
 	if obj != nil {
-		// Direct injection from tests passes *PluginConfig — accept it as-is.
+		// Direct injection from tests passes *PluginConfig: accept it as-is.
 		if direct, ok := obj.(*PluginConfig); ok {
 			cfg = direct
 		} else {
@@ -139,7 +139,7 @@ func (p *VRAMPlugin) PreFilter(
 ) (*framework.PreFilterResult, *framework.Status) {
 	reqStr, ok := pod.Annotations[VRAMAnnotation]
 	if !ok {
-		// Pod does not request GPU VRAM — skip this plugin entirely.
+		// Pod does not request GPU VRAM: skip this plugin entirely.
 		return nil, framework.NewStatus(framework.Skip)
 	}
 

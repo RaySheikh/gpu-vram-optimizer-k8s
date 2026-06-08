@@ -1,7 +1,7 @@
 package scheduler_test
 
 // Chaos tests verify that the scheduler plugin handles telemetry daemon failures
-// gracefully. The control plane must never crash due to downstream service issues —
+// gracefully. The control plane must never crash due to downstream service issues:
 // it should return a framework.Error status and let the scheduler retry or fall back.
 
 import (
@@ -109,7 +109,7 @@ func TestChaos_DaemonReturns404_NodeUnschedulable(t *testing.T) {
 // scheduler indefinitely. The client has a 2 s timeout; this test uses a
 // context deadline shorter than that to assert the plugin respects cancellation.
 func TestChaos_DaemonTimeout(t *testing.T) {
-	// Slow server — never responds within our deadline.
+	// Slow server: never responds within our deadline.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Block until the client's request context is canceled.
 		<-r.Context().Done()

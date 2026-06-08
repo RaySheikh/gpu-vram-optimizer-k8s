@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# hack/kind-setup.sh — Bootstraps a local multi-node kind cluster that simulates
+# hack/kind-setup.sh: Bootstraps a local multi-node kind cluster that simulates
 # a GPU fleet for Phase 2 validation. No real GPUs required.
 #
 # Prerequisites: kind, kubectl, docker

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# hack/teardown.sh — Tears down the local kind cluster created by kind-setup.sh.
+# hack/teardown.sh: Tears down the local kind cluster created by kind-setup.sh.
 
 set -euo pipefail
 

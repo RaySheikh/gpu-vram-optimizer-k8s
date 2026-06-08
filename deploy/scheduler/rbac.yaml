@@ -5,7 +5,7 @@ metadata:
   name: gpu-packer-scheduler
   namespace: gpu-scheduler
 ---
-# Bind to the built-in system:kube-scheduler role — covers pods, nodes,
+# Bind to the built-in system:kube-scheduler role: covers pods, nodes,
 # bindings, events, PVs, PVCs, services, PDBs, ReplicationControllers, etc.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

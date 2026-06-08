@@ -2,7 +2,7 @@ package scheduler_test
 
 // Integration tests exercise the full PreFilter → Filter → Score pipeline using
 // a real *TelemetryClient pointed at an httptest.Server. No Kubernetes API server
-// is required — only the pure Go framework types (CycleState, NodeInfo) are used.
+// is required: only the pure Go framework types (CycleState, NodeInfo) are used.
 
 import (
 	"context"
@@ -240,7 +240,7 @@ func TestScore_LowFragScoresHigher(t *testing.T) {
 }
 
 // TestScore_TighterFitScoresHigherOnTie verifies that when fragmentation is
-// equal, the node with less leftover VRAM after placement scores higher — the
+// equal, the node with less leftover VRAM after placement scores higher: the
 // Best-Fit Decreasing tie-break.
 func TestScore_TighterFitScoresHigherOnTie(t *testing.T) {
 	const (
@@ -281,7 +281,7 @@ func TestFullPipeline_H100SelectedOverA10G(t *testing.T) {
 		},
 		"sim-node-a10g": {
 			NodeName:           "sim-node-a10g",
-			VRAMAvailableBytes: 20_000_000_000, // 20 GB — fails Filter
+			VRAMAvailableBytes: 20_000_000_000, // 20 GB: fails Filter
 			FragmentationRatio: 0.25,
 		},
 	})

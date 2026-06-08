@@ -14,31 +14,31 @@ func TestFilterNode(t *testing.T) {
 		wantSchedulable bool
 	}{
 		{
-			name:            "exact fit — schedulable",
+			name:            "exact fit: schedulable",
 			availableBytes:  8_000_000_000,
 			requestedBytes:  8_000_000_000,
 			wantSchedulable: true,
 		},
 		{
-			name:            "ample headroom — schedulable",
+			name:            "ample headroom: schedulable",
 			availableBytes:  80_000_000_000, // 80 GB H100
 			requestedBytes:  40_000_000_000, // 40 GB LLM request
 			wantSchedulable: true,
 		},
 		{
-			name:            "one byte short — unschedulable",
+			name:            "one byte short: unschedulable",
 			availableBytes:  7_999_999_999,
 			requestedBytes:  8_000_000_000,
 			wantSchedulable: false,
 		},
 		{
-			name:            "zero available — unschedulable",
+			name:            "zero available: unschedulable",
 			availableBytes:  0,
 			requestedBytes:  8_000_000_000,
 			wantSchedulable: false,
 		},
 		{
-			name:            "small node, large request — unschedulable",
+			name:            "small node, large request: unschedulable",
 			availableBytes:  24_000_000_000, // 24 GB A10G
 			requestedBytes:  40_000_000_000, // 40 GB LLM
 			wantSchedulable: false,
@@ -67,28 +67,28 @@ func TestScoreNode(t *testing.T) {
 		wantScore      int64
 	}{
 		{
-			name:           "perfect node — zero fragmentation, exact fit",
+			name:           "perfect node: zero fragmentation, exact fit",
 			availableBytes: 8_000_000_000,
 			requestedBytes: 8_000_000_000,
 			fragRatio:      0.0,
 			wantScore:      100, // 90*(1-0) + 10*(1-0/8GB) = 100
 		},
 		{
-			name:           "fully fragmented node — lowest score",
+			name:           "fully fragmented node: lowest score",
 			availableBytes: 80_000_000_000,
 			requestedBytes: 8_000_000_000,
 			fragRatio:      1.0,
 			wantScore:      1, // 90*(1-1.0)=0, fit = 10*(1-72/80)=1
 		},
 		{
-			name:           "low frag, tight fit — high score (H100 scenario)",
+			name:           "low frag, tight fit: high score (H100 scenario)",
 			availableBytes: 44_000_000_000, // 44 GB remaining
 			requestedBytes: 40_000_000_000, // 40 GB request
 			fragRatio:      0.08,
 			wantScore:      91, // 90*0.92=82.8 + 10*(1-4/44)=9.09 ≈ 91
 		},
 		{
-			name:           "moderate frag, loose fit — lower score (A10G scenario)",
+			name:           "moderate frag, loose fit: lower score (A10G scenario)",
 			availableBytes: 20_000_000_000,
 			requestedBytes: 8_000_000_000,
 			fragRatio:      0.25,
@@ -111,7 +111,7 @@ func TestScoreNode(t *testing.T) {
 
 // TestScoreNodeBestFitTieBreaking verifies that when two nodes have identical
 // fragmentation ratios, the node with the tighter fit (less leftover VRAM)
-// receives a higher score — implementing the Best-Fit Decreasing tie-break.
+// receives a higher score: implementing the Best-Fit Decreasing tie-break.
 func TestScoreNodeBestFitTieBreaking(t *testing.T) {
 	const (
 		requestedBytes = 40_000_000_000 // 40 GB LLM workload
@@ -125,7 +125,7 @@ func TestScoreNodeBestFitTieBreaking(t *testing.T) {
 
 	if scoreA <= scoreB {
 		t.Errorf("expected tighter-fit node A (score %d) > loose-fit node B (score %d), "+
-			"but got the opposite — Best-Fit tie-breaking is broken", scoreA, scoreB)
+			"but got the opposite: Best-Fit tie-breaking is broken", scoreA, scoreB)
 	}
 }
 
