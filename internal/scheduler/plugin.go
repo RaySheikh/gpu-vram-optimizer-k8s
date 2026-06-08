@@ -56,8 +56,8 @@ type PluginConfig struct {
 
 // DeepCopyObject satisfies runtime.Object. PluginConfig contains only value types.
 func (c *PluginConfig) DeepCopyObject() runtime.Object {
-	copy := *c
-	return &copy
+	cp := *c
+	return &cp
 }
 
 // GetObjectKind satisfies runtime.Object.

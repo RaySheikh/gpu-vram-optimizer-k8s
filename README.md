@@ -114,7 +114,7 @@ node.vram_available_bytes < pod.nvidia.com/gpu-vram-req
 
 Surviving nodes are ranked by a weighted composite score (0–100):
 
-$$\text{score} = 90 \times (1 - \text{frag\_ratio}) + 10 \times \left(1 - \frac{\text{available} - \text{requested}}{\text{available}}\right)$$
+$$\text{score} = 90 \times (1 - frag_{\text{ratio}}) + 10 \times \left(1 - \frac{\text{available} - \text{requested}}{\text{available}}\right)$$
 
 - **Fragmentation component (90 pts):** Nodes with less fragmented memory rank higher.
 - **Best-fit component (10 pts):** When fragmentation scores tie, the node with the least leftover VRAM after placement wins — driving tight bin-packing.

@@ -59,7 +59,7 @@ func (c *TelemetryClient) GetNodeMetrics(ctx context.Context, nodeName string, n
 		baseURL = c.daemonURL
 	}
 	url := fmt.Sprintf("%s/api/v1/nodes/%s", baseURL, nodeName)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("building request: %w", err)
 	}

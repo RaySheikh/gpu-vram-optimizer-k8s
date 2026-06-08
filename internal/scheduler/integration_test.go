@@ -24,7 +24,7 @@ import (
 
 // newMockDaemon creates an httptest.Server that serves NodeMetrics from the
 // provided map keyed by node name. Unknown nodes receive a 404, matching the
-// production daemon behaviour.
+// production daemon behavior.
 func newMockDaemon(t *testing.T, nodes map[string]telemetry.NodeMetrics) *httptest.Server {
 	t.Helper()
 	mux := http.NewServeMux()

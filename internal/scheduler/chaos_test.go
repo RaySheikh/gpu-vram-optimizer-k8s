@@ -111,7 +111,7 @@ func TestChaos_DaemonReturns404_NodeUnschedulable(t *testing.T) {
 func TestChaos_DaemonTimeout(t *testing.T) {
 	// Slow server — never responds within our deadline.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Block until the client's request context is cancelled.
+		// Block until the client's request context is canceled.
 		<-r.Context().Done()
 	}))
 	defer srv.Close()

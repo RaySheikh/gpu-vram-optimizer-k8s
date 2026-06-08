@@ -12,7 +12,6 @@ import (
 
 func main() {
 	logs.InitLogs()
-	defer logs.FlushLogs()
 
 	command := app.NewSchedulerCommand(
 		app.WithPlugin(scheduler.Name, scheduler.New),
@@ -20,6 +19,7 @@ func main() {
 
 	if err := command.Execute(); err != nil {
 		log.Println(err)
+		logs.FlushLogs()
 		os.Exit(1)
 	}
 }

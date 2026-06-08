@@ -3,6 +3,7 @@ package telemetry
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -133,7 +134,9 @@ func (d *Daemon) handleAllNodes(w http.ResponseWriter, r *http.Request) {
 		list = append(list, m)
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(list)
+	if err := json.NewEncoder(w).Encode(list); err != nil {
+		log.Printf("encode node list: %v", err)
+	}
 }
 
 // handleNodeByName returns JSON for a specific node.
@@ -154,7 +157,9 @@ func (d *Daemon) handleNodeByName(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(m)
+	if err := json.NewEncoder(w).Encode(m); err != nil {
+		log.Printf("encode node %q: %v", nodeName, err)
+	}
 }
 
 // --- helpers ---
