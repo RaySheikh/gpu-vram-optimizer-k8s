@@ -80,7 +80,7 @@ llm-pod-oversized            <Pending>              ← correctly unschedulable
 ┌──────────────────────────────────────────────────────────────────────┐
 │  Kubernetes Cluster                                                  │
 │                                                                      │
-│  ┌─────────────────────┐     per-node IP:8080    ┌────────────────┐  │
+│  ┌──────────────────────┐     per-node IP:8080   ┌────────────────┐  │
 │  │  Telemetry DaemonSet │ ◄──────────────────────│ Scheduler      │  │
 │  │  (one pod per node)  │                        │ Plugin         │  │
 │  │                      │                        │                │  │
